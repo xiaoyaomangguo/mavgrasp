@@ -1,0 +1,16 @@
+<launch> 
+
+  <node pkg="mocap_optitrack" type="mocap_node" name="mocap_node" respawn="false" output="screen"
+    launch-prefix=""
+    required="true">
+    <rosparam file="$(find mocap_optitrack)/config/mocap.yaml" command="load" />
+    <remap from="/Robot_1/pose" to="/mavros/vision_pose/pose" />
+  </node>
+  
+  <!--include file="$(find mavros)/launch/px4.launch">
+  		<arg name="fcu_url" value="$(arg fcu_url)" />
+
+  </include-->
+  <node pkg="uav_with_arm" type="setpoint_pub_node" name="setpoint_pub_node" />
+
+</launch>
