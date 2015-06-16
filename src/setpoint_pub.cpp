@@ -23,7 +23,9 @@ const int J_q   = 1;
 SetPoint::SetPoint():
     node_("~"),
     time_after_start(0),
-    time_prev(0)
+    time_prev(0),
+    start_grasp(false),
+    end_grasp(false)
 {
     start();
 }
@@ -33,14 +35,18 @@ SetPoint::~SetPoint(){}
 void SetPoint::poseCallBack(const geometry_msgs::PoseStampedConstPtr &msg)
 {
 
-    if( fabs(msg->pose.position.x - waypoints_(0,0)) >= AllowError &&
-        fabs(msg->pose.position.y)                 >= AllowError &&
-        fabs(msg->pose.position.z - waypoints_(0,2)) >= AllowError)  // not the first waypoint, continue to the first point
+    if( fabs(msg->pose.position.x - waypoints_(0,0)) >= AllowError
+        || fabs(msg->pose.position.y)                 >= AllowError
+        || fabs(msg->pose.position.z - waypoints_(0,2)) >= AllowError  // not the first waypoint, continue to the first point
+        && !start_grasp
+        && !end_grasp)
     {
         ROS_INFO("Waiting for grasping!!!");
-        generatePosPub();
+        generatePosPub(0);
     }
     else
+        start_grasp = true;
+    if(start_grasp == true)
     {
         time_now = ros::Time::now();
         time_after_start += (time_now.toNSec() - time_prev.toNSec())/1e+9;
@@ -48,6 +54,16 @@ void SetPoint::poseCallBack(const geometry_msgs::PoseStampedConstPtr &msg)
         generatePosPub(r_q);
         generateAttPub(*msg);
         time_prev = time_now;
+        if(time_after_start > timepoints_(5)){
+            end_grasp == true;
+            start_grasp == false;
+        }
+
+    }
+    if(end_grasp)//end to grasp
+    {
+        ROS_INFO("Grasp End!!!");
+        generatePosPub(5);    //stop in the end point
     }
 }
 
@@ -162,12 +178,12 @@ void SetPoint::diffFlatness(double t)
     //output: r_q, beta, theta, u1, u3
 }
 
-void SetPoint::generatePosPub()
+void SetPoint::generatePosPub(int n_point)
 {
     geometry_msgs::PoseStamped msg;
-    msg.pose.position.x = waypoints_(0,0);
+    msg.pose.position.x = waypoints_(n_point,0);
     msg.pose.position.y = 0;
-    msg.pose.position.z = waypoints_(0,1);
+    msg.pose.position.z = waypoints_(n_point,1);
     pos_sp_pub_.publish(msg);
 }
 

@@ -1,0 +1,3 @@
+include/mavgrasp/setpoint_pub.h
+src/main.cpp
+src/setpoint_pub.cpp

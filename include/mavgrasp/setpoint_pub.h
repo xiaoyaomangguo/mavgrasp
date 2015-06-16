@@ -29,7 +29,7 @@ public:
     void start();            //make the mav fly to the starting points
 
     void diffFlatness(double t);
-    void generatePosPub();
+    void generatePosPub(int n_point);
     void generatePosPub(Vector3d&  r_q);
     void generateAttPub(geometry_msgs::PoseStamped local_att);
 
@@ -39,6 +39,8 @@ private:
     ros::Time       time_prev;
     double          time_after_start;
 
+    bool            start_grasp;
+    bool            end_grasp;
     ros::Subscriber local_pos_sub_;
     ros::Publisher  pos_sp_pub_;
     ros::Publisher  att_sp_pub_;
