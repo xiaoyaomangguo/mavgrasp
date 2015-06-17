@@ -35,36 +35,39 @@ SetPoint::~SetPoint(){}
 void SetPoint::poseCallBack(const geometry_msgs::PoseStampedConstPtr &msg)
 {
 
-    if( fabs(msg->pose.position.x - waypoints_(0,0)) >= AllowError
-        || fabs(msg->pose.position.y)                 >= AllowError
-        || fabs(msg->pose.position.z - waypoints_(0,2)) >= AllowError  // not the first waypoint, continue to the first point
-        && !start_grasp
-        && !end_grasp)
+    if( fabs(msg->pose.position.x - waypoints_(0,0)) < AllowError
+        && fabs(msg->pose.position.y)                < AllowError
+        && fabs(msg->pose.position.z - waypoints_(0,1)) < AllowError  // not the first waypoint, continue to the first point
+        && !start_grasp)
     {
-        ROS_INFO("Waiting for grasping!!!");
-        generatePosPub(0);
+        start_grasp = true;  //begin to grasp
+        ROS_INFO("Begin to grasp!!!");
     }
-    else
-        start_grasp = true;
-    if(start_grasp == true)
-    {
-        time_now = ros::Time::now();
-        time_after_start += (time_now.toNSec() - time_prev.toNSec())/1e+9;
-        diffFlatness(time_after_start);
-        generatePosPub(r_q);
-        generateAttPub(*msg);
-        time_prev = time_now;
-        if(time_after_start > timepoints_(5)){
-            end_grasp == true;
-            start_grasp == false;
+    if(start_grasp == false && end_grasp == false) //not to the first point, do not to grasp
+        {
+            ROS_INFO("Waiting for grasping!!!");
+            generatePosPub(0);
+        }
+        if(start_grasp) // begin to grasp
+        {
+            time_now = ros::Time::now();
+            time_after_start += (time_now.toNSec() - time_prev.toNSec())/1e+9;
+            diffFlatness(time_after_start);
+            generatePosPub(r_q);
+            generateAttPub(*msg);
+            time_prev = time_now;
+            if(time_after_start > timepoints_(4)) //if end grasping
+            {
+                end_grasp == true;
+                start_grasp == false;
+            }
         }
 
-    }
-    if(end_grasp)//end to grasp
-    {
-        ROS_INFO("Grasp End!!!");
-        generatePosPub(5);    //stop in the end point
-    }
+        if(end_grasp)//end to grasp
+        {
+            ROS_INFO("Grasp End!!!");
+            generatePosPub(5);    //stop in the end point
+        }
 }
 
 void SetPoint::start()
@@ -172,7 +175,7 @@ void SetPoint::diffFlatness(double t)
     double dtheta = m_s * (b1.dot(d3r_s));
     double d2theta = (m_s * b1.dot(d4r_s) - 2 * du1 * dtheta);
     double d2u1 = b3.dot(m_s * d4r_s) + dtheta * dtheta * u1;
-    double tao = J_g * d2beta - L * m_g * (d2r_g(0) * sin(beta) + (d2r_g(3) + G) * cos(beta));
+    double tao = J_g * d2beta - L * m_g * (d2r_g(0) * sin(beta) + (d2r_g(2) + G) * cos(beta));
 
     u3 = d2theta * J_q + tao;
     //output: r_q, beta, theta, u1, u3

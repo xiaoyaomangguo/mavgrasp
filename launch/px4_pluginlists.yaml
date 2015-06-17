@@ -1,0 +1,4 @@
+plugin_blacklist:
+- 'image_pub'
+plugin_whitelist: []
+#- 'sys_*'

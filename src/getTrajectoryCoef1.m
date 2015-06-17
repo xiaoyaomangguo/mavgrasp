@@ -1,6 +1,6 @@
 function [basis_coef] = getTrajectoryCoef(waypoints, timepoints, ...
-    number_order)%, time_factor)
-clear all
+    number_order, mu_r, mu_yaw)%, time_factor)
+clc
 %% Generate Coefficients of Polynomial Basis Function
 % Generate Hessian Matrix
 % P(t) = c0+c1*t+c2*t.^2+c3*t.^3+c4*t.^4+c5*t.^5+ .. + cn*t.^n
@@ -17,12 +17,15 @@ clear all
 % i is [1 .. n] j is [1 .. m]
 
 %% make Hessian
-% four waypoints only
+% three waypoints only
+% waypoints = [0 1.5 30 0; 1.0 1.2 70 0; 1.5 1.0 90 0; 2 1.2 110 0; 3.0 1.5 140 0];
+waypoints = [0 4 30 0; 0.75 3.5 70 0; 1.5 2.0 90 0; 2.25 3.5 110 0; 3.0 4.0 140 0];
+% waypoints = [0 4 30 0;  3.0 2.0 90 0;  6.0 4.0 140 0];
 
-waypoints = [0 1.5 30 0; 0.75 1.2 70 0; 1.5 1.0 90 0; 2.25 1.2 110 0; 3.0 1.5 140 0];
-%waypoints = [0 4 30 30; 2.5 3.5 70 30; 3.0 2.0 90 30; 5.5 3.5 110 30; 6.0 4.0 140 30];
 timepoints = [0 0.5 1.0 1.5 2.0];
 number_order = 7;
+mu_r = 1;
+mu_yaw = 1;
 
 m = size(waypoints, 1) - 1;
 n = number_order; % if it is 6 than the biggest is .^6 with seven coefficients
@@ -67,15 +70,15 @@ for id = 1 : num_segments
     % 5 means derivative of 0, 1, 2, 3, 4
     begin_base = []; end_base = [];
     for order = 0 : n
-        begin_base= [t1.^order begin_base];%����
+        begin_base= [t1.^order begin_base]; % descending
         end_base = [t2.^order end_base];
     end
-    derivatives_begin = fliplr(begin_base);  %����
+    derivatives_begin = fliplr(begin_base); % ascending
     derivatives_end = fliplr(end_base);
     for i = 0 : 4
-        begin_base = polyder(begin_base);
+        begin_base = polyder(begin_base);   % diff based on descending
         end_base = polyder(end_base);
-        derivatives_begin = [derivatives_begin; zeros(1, n + 1 - length(begin_base)) fliplr(begin_base)];%������ǰ�׵��������룬ǰ�油��
+        derivatives_begin = [derivatives_begin; zeros(1, n + 1 - length(begin_base)) fliplr(begin_base)];% ascending,������ǰ�׵��������룬ǰ�油��
         derivatives_end = [derivatives_end; zeros(1, n + 1 - length(end_base)) fliplr(end_base)];
     end
     % Begin Point
@@ -117,10 +120,12 @@ end
 options = optimset ('Algorithm', 'active-set', 'largescale', 'off');
 [basis_coef,fval,exitflag,output,lambda] = quadprog(H_all, [], [], [], A, b, [], [], [], options);
 basis_coef = reshape(basis_coef, length(basis_coef) / m, m);
+
+%%����ͼ��
 coef_0=[reshape(basis_coef(:,1),4,8);   % the first segment, four lines for x,z,beta,yaw. for ascending
-        reshape(basis_coef(:,2),4,8);   % the second segment, four lines for x,z,beta,yaw. for ascending
-        reshape(basis_coef(:,3),4,8);   % the third segment, four lines for x,z,beta,yaw. for ascending
-        reshape(basis_coef(:,4),4,8)]  % the forth segment, four lines for x,z,beta,yaw. for ascending
+        reshape(basis_coef(:,1),4,8);   % the second segment, four lines for x,z,beta,yaw. for ascending
+        reshape(basis_coef(:,1),4,8);   % the third segment, four lines for x,z,beta,yaw. for ascending
+        reshape(basis_coef(:,1),4,8)];  % the forth segment, four lines for x,z,beta,yaw. for ascending
 coef_temp=coef_0;
 
 coef_d1=[];     % First Derivative
@@ -143,25 +148,53 @@ for i=1:4  % four order derivation for every line
         coef_d3=coef_d
     elseif i==4
         coef_d4=coef_d
+        size(coef_d4,2)
     end
     coef_temp = coef_d;
     
 end
-coefd0=[coef_0(1:4,:),coef_0(5:8,:),coef_0(9:12,:),coef_0(13:16,:)];
-coefd1=[coef_d1(1:4,:),coef_d1(5:8,:),coef_d1(9:12,:),coef_d1(13:16,:)];
-coefd2=[coef_d2(1:4,:),coef_d2(5:8,:),coef_d2(9:12,:),coef_d2(13:16,:)];
-coefd3=[coef_d3(1:4,:),coef_d3(5:8,:),coef_d3(9:12,:),coef_d3(13:16,:)];
-coefd4=[coef_d4(1:4,:),coef_d4(5:8,:),coef_d4(9:12,:),coef_d4(13:16,:)];
-% coef_1 = reshape(basis_coef(:,1),4,8);%coef for first segment for x,z,bata,yaw
-% coef_2 = reshape(basis_coef(:,2),4,8);%coef for 2-nd segment for x,z,bata,yaw
-% coef_3 = reshape(basis_coef(:,3),4,8);%coef for 3-th segment for x,z,bata,yaw
-% coef_4 = reshape(basis_coef(:,4),4,8);%coef for 4-th segment for x,z,bata,yaw
-% coef_all=[coef_1 coef_2 coef_3 coef_4];%32*4 line 1 for x; line 2 for z; line 3 for beta; line 4 for yaw
-% % CoAndWp=[coef_all;waypoints;timepoints];
-dlmwrite('config/coefd0.txt',coefd0,'delimiter','\t','precision','%10.6f');
-dlmwrite('config/coefd1.txt',coefd1,'delimiter','\t','precision','%10.6f');
-dlmwrite('config/coefd2.txt',coefd2,'delimiter','\t','precision','%10.6f');
-dlmwrite('config/coefd3.txt',coefd3,'delimiter','\t','precision','%10.6f');
-dlmwrite('config/coefd4.txt',coefd4,'delimiter','\t','precision','%10.6f');
-dlmwrite('config/Twaypoints.txt',[timepoints',waypoints],'delimiter','\t','precision','%10.6f');
+coef_1 = reshape(basis_coef(:,1),4,8)   % 
+coef_2 = reshape(basis_coef(:,2),4,8)
+coef_3 = reshape(basis_coef(:,3),4,8)
+coef_4 = reshape(basis_coef(:,4),4,8)
+% d1x=polyder(fliplr(coef_4(1,:)));
+% d1z=polyder(fliplr(coef_4(2,:)))
+% d1b=polyder(fliplr(coef_4(3,:)))
+% d1y=polyder(fliplr(coef_4(4,:)))
+% coef_4d=[fliplr(d1x),zeros(1, n - length(d1x));fliplr(d1z),zeros(1, n - length(d1z));fliplr(d1b),zeros(1, n - length(d1b));fliplr(d1y),zeros(1, n - length(d1y))]
+% 
+for id = 1 : num_segments
+    for  time_stamp = 0:0.01:timepoints(5);
+        t = [1; time_stamp; time_stamp.^2; time_stamp.^3; time_stamp.^4; time_stamp.^5; time_stamp.^6; time_stamp.^7]';%������
+        if 0 <= time_stamp <= timepoints(2)
+            coef = coef_1;
+        elseif  timepoints(2) < time_stamp <= timepoints(3)
+            coef = coef_2;
+        elseif timepoints(3) < time_stamp <= timepoints(4)
+            coef = coef_3;
+        elseif timepoints(2) < time_stamp <= timepoints(3)
+            coef = coef_4;
+        end
+        x = sum(coef(1, :).*t);
+        dx=sum(coef_d(1,:).*t(1:size(coef_d,2)));
+        z = sum(coef(2, :).*t);
+        dz=sum(coef_d(2,:).*t(1:size(coef_d,2)));
+        beta = sum(coef(3, :).*t);
+        figure(1); hold on; grid on;
+        plot(time_stamp,x);
+        xlabel('time (s)')
+        ylabel('x (m)');
+        figure(2);hold on; grid on;
+        plot(time_stamp,z);
+        xlabel('time (s)')
+        ylabel('z (m/s)');
+        figure(3);hold on; grid on;
+        plot(time_stamp,beta);
+        xlabel('time (s)')
+        ylabel('beta (degree)');
+    end
+end
+hold off;
+
+
 

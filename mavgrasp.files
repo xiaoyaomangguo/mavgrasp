@@ -1,3 +1,10 @@
 include/mavgrasp/setpoint_pub.h
 src/main.cpp
 src/setpoint_pub.cpp
+src/config/coefd0.txt
+src/config/coefd1.txt
+src/config/coefd2.txt
+src/config/coefd3.txt
+src/config/coefd4.txt
+src/config/ReadMe.md
+src/config/Twaypoints.txt

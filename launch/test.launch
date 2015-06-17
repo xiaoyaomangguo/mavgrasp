@@ -1,0 +1,3 @@
+<launch> 
+  <node pkg="mavgrasp" type="grasp_setpoint_node" name="grasp_setpoint_node" output="screen"/>
+</launch>
